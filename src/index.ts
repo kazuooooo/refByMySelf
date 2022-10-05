@@ -1,8 +1,7 @@
-import { effect, reactive, ref, computed } from "./reactive"
+import { computed, reactive } from "./reactive/index"
 const product = reactive({ price: 5, quantity: 2 })
 let salePrice = computed(() => product.price * 0.9)
 let total = computed(() => salePrice.value * product.quantity)
-
 
 // salePriceには変更されるが、salePriceに依存するtotalの値は変更されない
 product.price = 10

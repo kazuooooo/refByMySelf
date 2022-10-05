@@ -117,13 +117,13 @@ parcelRequire = (function (modules, cache, entry, globalName) {
   }
 
   return newRequire;
-})({"src/reactive.ts":[function(require,module,exports) {
+})({"src/reactive/internal.ts":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-exports.computed = exports.ref = exports.reactive = exports.effect = void 0;
+exports.trigger = exports.track = exports.effect = void 0;
 var targetMap = new WeakMap();
 var activeEffect = null;
 
@@ -154,6 +154,8 @@ var track = function track(target, key) {
   }
 };
 
+exports.track = track;
+
 var trigger = function trigger(target, key) {
   var _a;
 
@@ -169,39 +171,28 @@ var trigger = function trigger(target, key) {
   });
 };
 
-var reactive = function reactive(target) {
-  return new Proxy(target, {
-    get: function get(target, key, receiver) {
-      var result = Reflect.get(target, key, receiver);
-      track(target, key);
-      return result;
-    },
-    set: function set(target, key, value, receiver) {
-      var oldValue = Reflect.get(target, key, receiver);
-      var result = Reflect.set(target, key, value, receiver);
+exports.trigger = trigger;
+},{}],"src/reactive/ref.ts":[function(require,module,exports) {
+"use strict";
 
-      if (result && oldValue !== value) {
-        trigger(target, key);
-      }
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.ref = void 0;
 
-      return result;
-    }
-  });
-};
-
-exports.reactive = reactive;
+var internal_1 = require("./internal");
 
 var ref = function ref(raw) {
   var r = {
     get value() {
-      track(r, "value");
+      (0, internal_1.track)(r, "value");
       return raw;
     },
 
     set value(newVal) {
       if (raw !== newVal) {
         raw = newVal;
-        trigger(r, "value");
+        (0, internal_1.trigger)(r, "value");
       }
     }
 
@@ -210,40 +201,116 @@ var ref = function ref(raw) {
 };
 
 exports.ref = ref;
+},{"./internal":"src/reactive/internal.ts"}],"src/reactive/computed.ts":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.computed = void 0;
+
+var internal_1 = require("./internal");
+
+var ref_1 = require("./ref");
 
 var computed = function computed(getter) {
-  var result = (0, exports.ref)();
-  (0, exports.effect)(function () {
+  var result = (0, ref_1.ref)();
+  (0, internal_1.effect)(function () {
     return result.value = getter();
   });
   return result;
 };
 
 exports.computed = computed;
-},{}],"src/index.ts":[function(require,module,exports) {
+},{"./internal":"src/reactive/internal.ts","./ref":"src/reactive/ref.ts"}],"src/reactive/reactive.ts":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.reactive = void 0;
+
+var internal_1 = require("./internal");
+
+var reactive = function reactive(target) {
+  return new Proxy(target, {
+    get: function get(target, key, receiver) {
+      var result = Reflect.get(target, key, receiver);
+      (0, internal_1.track)(target, key);
+      return result;
+    },
+    set: function set(target, key, value, receiver) {
+      var oldValue = Reflect.get(target, key, receiver);
+      var result = Reflect.set(target, key, value, receiver);
+
+      if (result && oldValue !== value) {
+        (0, internal_1.trigger)(target, key);
+      }
+
+      return result;
+    }
+  });
+};
+
+exports.reactive = reactive;
+},{"./internal":"src/reactive/internal.ts"}],"src/reactive/index.ts":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.ref = exports.reactive = exports.computed = void 0;
+
+var computed_1 = require("./computed");
+
+Object.defineProperty(exports, "computed", {
+  enumerable: true,
+  get: function get() {
+    return computed_1.computed;
+  }
+});
+
+var reactive_1 = require("./reactive");
+
+Object.defineProperty(exports, "reactive", {
+  enumerable: true,
+  get: function get() {
+    return reactive_1.reactive;
+  }
+});
+
+var ref_1 = require("./ref");
+
+Object.defineProperty(exports, "ref", {
+  enumerable: true,
+  get: function get() {
+    return ref_1.ref;
+  }
+});
+},{"./computed":"src/reactive/computed.ts","./reactive":"src/reactive/reactive.ts","./ref":"src/reactive/ref.ts"}],"src/index.ts":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
 
-var reactive_1 = require("./reactive");
+var index_1 = require("./reactive/index");
 
-var product = (0, reactive_1.reactive)({
+var product = (0, index_1.reactive)({
   price: 5,
   quantity: 2
 });
-var salePrice = (0, reactive_1.computed)(function () {
+var salePrice = (0, index_1.computed)(function () {
   return product.price * 0.9;
 });
-var total = (0, reactive_1.computed)(function () {
+var total = (0, index_1.computed)(function () {
   return salePrice.value * product.quantity;
 }); // salePriceには変更されるが、salePriceに依存するtotalの値は変更されない
 
 product.price = 10;
 console.log("total (should be 18) = ".concat(total, " salePrice (should be 9) = ").concat(salePrice.value) // total (should be 18) = 0 salePrice (should be 9) = 9
 );
-},{"./reactive":"src/reactive.ts"}],"node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
+},{"./reactive/index":"src/reactive/index.ts"}],"node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
 var global = arguments[3];
 var OVERLAY_ID = '__parcel__error__overlay__';
 var OldModule = module.bundle.Module;
@@ -271,7 +338,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "59975" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "57769" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
